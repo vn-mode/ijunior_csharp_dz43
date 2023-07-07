@@ -1,86 +1,160 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
-public class Player
+public class Program
 {
-    private List<Item> items;
+    public const int SHOW_SELLER_ITEMS = 1;
+    public const int SHOW_PLAYER_ITEMS = 2;
+    public const int BUY_ITEM = 3;
+    public const int EXIT = 4;
 
-    public Player()
+    public static void Main()
     {
-        items = new List<Item>();
-    }
+        Player player = new Player(1000);
+        Seller seller = new Seller(500);
 
-    public void ShowItems()
-    {
-        if (items.Count == 0)
+        Item item1 = new Item("Книга");
+        Item item2 = new Item("Мяч");
+
+        seller.AddItem(item1);
+        seller.AddItem(item2);
+
+        while (true)
         {
-            Console.WriteLine("У вас нет товаров.");
-        }
-        else
-        {
-            Console.WriteLine("Ваши товары:");
-            foreach (Item item in items)
+            Console.Write($"1. Товары продавца 2. Ваши товары 3. Купить товар 4. Выход: ");
+
+            bool isNumber = int.TryParse(Console.ReadLine(), out int choice);
+
+            if (!isNumber)
             {
-                Console.WriteLine(item.Name);
+                Console.WriteLine(Messages.InvalidChoice);
+                continue;
+            }
+
+            switch (choice)
+            {
+                case SHOW_SELLER_ITEMS:
+                    seller.ShowItems();
+                    break;
+
+                case SHOW_PLAYER_ITEMS:
+                    player.ShowItems();
+                    break;
+
+                case BUY_ITEM:
+                    Console.Write(Messages.EnterItemName);
+                    string itemName = Console.ReadLine();
+                    Console.Write(Messages.EnterItemPrice);
+                    bool isDecimal = decimal.TryParse(Console.ReadLine(), out decimal price);
+
+                    if (!isDecimal)
+                    {
+                        Console.WriteLine(Messages.InvalidPriceInput);
+                        break;
+                    }
+                    Item itemToBuy = seller.GetItemByName(itemName);
+
+                    if (itemToBuy != null)
+                    {
+                        player.BuyItem(seller, itemToBuy, price);
+                    }
+                    else
+                    {
+                        Console.WriteLine(string.Format(Messages.SellerDoesNotHaveItemInput, itemName));
+                    }
+                    break;
+
+                case EXIT:
+                    return;
+
+                default:
+                    Console.WriteLine(Messages.InvalidChoice);
+                    break;
             }
         }
-    }
-
-    public void BuyItem(Seller seller, Item item)
-    {
-        seller.SellItem(this, item);
-    }
-
-    public void AddItem(Item item)
-    {
-        items.Add(item);
-        Console.WriteLine("Товар добавлен в ваш инвентарь: " + item.Name);
     }
 }
 
-public class Seller
+public abstract class Trader
 {
-    private List<Item> items;
+    protected List<Item> _items;
+    protected decimal _money;
 
-    public Seller()
+    public Trader()
     {
-        items = new List<Item>();
+        _items = new List<Item>();
     }
 
     public void ShowItems()
     {
-        if (items.Count == 0)
-        {
-            Console.WriteLine("У продавца нет товаров.");
-        }
-        else
-        {
-            Console.WriteLine("Товары продавца:");
-            foreach (Item item in items)
-            {
-                Console.WriteLine(item.Name);
-            }
-        }
-    }
+        Console.Write(Messages.ShowItems);
 
-    public void SellItem(Player player, Item item)
-    {
-        if (items.Contains(item))
+        if (_items.Count == 0)
         {
-            items.Remove(item);
-            player.AddItem(item);
-            Console.WriteLine("Товар продан: " + item.Name);
+            Console.WriteLine(Messages.NoItems);
         }
         else
         {
-            Console.WriteLine("Продавец не имеет такого товара: " + item.Name);
+            Console.WriteLine(string.Join(", ", _items.Select(i => i.Name)));
         }
     }
 
     public void AddItem(Item item)
     {
-        items.Add(item);
-        Console.WriteLine("Товар добавлен продавцом: " + item.Name);
+        _items.Add(item);
+        Console.WriteLine(Messages.ItemAdded + item.Name);
+    }
+}
+
+public class Player : Trader
+{
+    public void BuyItem(Seller seller, Item item, decimal price)
+    {
+        if (_money < price)
+        {
+            Console.WriteLine(Messages.InsufficientMoney);
+            return;
+        }
+
+        if (seller.SellItem(this, item))
+        {
+            _money -= price;
+        }
+    }
+
+    public Player(decimal money)
+    {
+        _money = money;
+    }
+}
+
+public class Seller : Trader
+{
+    public bool SellItem(Player player, Item item)
+    {
+        if (_items.Contains(item))
+        {
+            _items.Remove(item);
+            player.AddItem(item);
+            Console.WriteLine(Messages.ItemSold + item.Name);
+            return true;
+        }
+        else
+        {
+            Console.WriteLine(Messages.SellerDoesNotHaveItem + item.Name);
+            return false;
+        }
+    }
+
+    public Seller(decimal money)
+    {
+        _money = money;
+    }
+
+    public Item GetItemByName(string itemName)
+    {
+        return _items.FirstOrDefault(i => i.Name.ToLower() == itemName.ToLower());
     }
 }
 
@@ -94,40 +168,17 @@ public class Item
     }
 }
 
-public class Program
+public class Messages
 {
-    public static void Main()
-    {
-        Player player = new Player();
-        Seller seller = new Seller();
-
-        Item item1 = new Item("Книга");
-        Item item2 = new Item("Мяч");
-
-        seller.AddItem(item1);
-        seller.AddItem(item2);
-
-        Console.WriteLine("Товары продавца:");
-        seller.ShowItems();
-
-        Console.WriteLine();
-
-        Console.WriteLine("Ваши товары:");
-        player.ShowItems();
-
-        Console.WriteLine();
-
-        Console.WriteLine("Покупка товара...");
-        player.BuyItem(seller, item1);
-
-        Console.WriteLine();
-
-        Console.WriteLine("Ваши товары после покупки:");
-        player.ShowItems();
-
-        Console.WriteLine();
-
-        Console.WriteLine("Товары продавца после покупки:");
-        seller.ShowItems();
-    }
+    public const string ShowItems = "Товары: ";
+    public const string NoItems = "нет товаров.";
+    public const string ItemAdded = "Товар добавлен: ";
+    public const string InsufficientMoney = "У вас недостаточно денег.";
+    public const string ItemSold = "Товар продан: ";
+    public const string SellerDoesNotHaveItem = "Продавец не имеет такого товара: ";
+    public const string InvalidChoice = "Неверный выбор. Введите число от 1 до 4.";
+    public const string EnterItemName = "Введите название товара: ";
+    public const string EnterItemPrice = "Введите цену товара: ";
+    public const string InvalidPriceInput = "Неверный ввод. Введите числовое значение для цены.";
+    public const string SellerDoesNotHaveItemInput = "Товара \"{0}\" нет у продавца.";
 }
