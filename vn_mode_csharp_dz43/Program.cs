@@ -4,10 +4,10 @@ using System.Linq;
 
 public class Program
 {
-    public const int ShowSellerItems = 1;
-    public const int ShowPlayerItems = 2;
-    public const int BuyItem = 3;
-    public const int Exit = 4;
+    public const string CommandShowSellerItems = "1";
+    public const string CommandShowPlayerItems = "2";
+    public const string CommandBuyItem = "3";
+    public const string CommandExit = "4";
 
     public static void Main()
     {
@@ -20,45 +20,31 @@ public class Program
         seller.AddItem(item1);
         seller.AddItem(item2);
 
-        while (true)
+        bool continueRunning = true;
+
+        while (continueRunning)
         {
             Console.Write(Messages.Choices);
 
-            bool isNumber = int.TryParse(Console.ReadLine(), out int choice);
-
-            if (!isNumber)
-            {
-                Console.WriteLine(Messages.InvalidChoice);
-                continue;
-            }
+            string choice = Console.ReadLine();
 
             switch (choice)
             {
-                case ShowSellerItems:
+                case CommandShowSellerItems:
                     seller.ShowItems();
                     break;
 
-                case ShowPlayerItems:
+                case CommandShowPlayerItems:
                     player.ShowItems();
                     break;
 
-                case BuyItem:
-                    Console.Write(Messages.EnterItemName);
-                    string itemName = Console.ReadLine();
-                    Item itemToBuy = seller.GetItemByName(itemName);
-
-                    if (itemToBuy != null)
-                    {
-                        player.BuyItem(seller, itemToBuy);
-                    }
-                    else
-                    {
-                        Console.WriteLine(string.Format(Messages.SellerDoesNotHaveItemInput, itemName));
-                    }
+                case CommandBuyItem:
+                    PurchaseItem(player, seller);
                     break;
 
-                case Exit:
-                    return;
+                case CommandExit:
+                    continueRunning = false;
+                    break;
 
                 default:
                     Console.WriteLine(Messages.InvalidChoice);
@@ -67,6 +53,22 @@ public class Program
 
             Console.WriteLine($"У продавца на балансе: {seller.MoneyAmount}");
             Console.WriteLine($"У вас на балансе: {player.MoneyAmount}");
+        }
+    }
+
+    private static void PurchaseItem(Player player, Seller seller)
+    {
+        Console.Write(Messages.EnterItemName);
+        string itemName = Console.ReadLine();
+        Item itemToBuy = seller.GetItemByName(itemName);
+
+        if (itemToBuy != null)
+        {
+            player.BuyItem(seller, itemToBuy);
+        }
+        else
+        {
+            Console.WriteLine(string.Format(Messages.SellerDoesNotHaveItemInput, itemName));
         }
     }
 }
@@ -91,13 +93,13 @@ public abstract class Trader
     protected List<Item> Items;
     protected decimal Money;
 
-    public decimal MoneyAmount => Money;
-
     public Trader(decimal money)
     {
         Items = new List<Item>();
         Money = money;
     }
+
+    public decimal MoneyAmount => Money;
 
     public void ShowItems()
     {
@@ -125,6 +127,8 @@ public abstract class Trader
 
 public class Player : Trader
 {
+    public Player(decimal money) : base(money) { }
+
     public void BuyItem(Seller seller, Item item)
     {
         if (Money < item.Price)
@@ -138,12 +142,12 @@ public class Player : Trader
             Money -= item.Price;
         }
     }
-
-    public Player(decimal money) : base(money) { }
 }
 
 public class Seller : Trader
 {
+    public Seller(decimal money) : base(money) { }
+
     public bool SellItem(Player player, Item item)
     {
         if (Items.Contains(item))
@@ -160,8 +164,6 @@ public class Seller : Trader
             return false;
         }
     }
-
-    public Seller(decimal money) : base(money) { }
 
     public Item GetItemByName(string itemName)
     {
