@@ -109,24 +109,20 @@ public abstract class Trader
         Console.WriteLine(Messages.ItemAdded + item.Name);
     }
 
-    public bool TryAddMoney(decimal amount)
+    public void AddMoney(decimal amount)
     {
         _money += amount;
-        return true;
     }
 
-    public bool TryRemoveMoney(decimal amount)
+    public bool CanBuy(Item item)
     {
-        if (_money < amount)
-        {
-            Console.WriteLine(Messages.InsufficientMoney);
-            return false;
-        }
-        else
-        {
-            _money -= amount;
-            return true;
-        }
+        return _money >= item.Price;
+    }
+
+    public void Buy(Item item)
+    {
+        _money -= item.Price;
+        AddItem(item);
     }
 }
 
@@ -139,23 +135,15 @@ public class Seller : Trader
 {
     public Seller(decimal money) : base(money) { }
 
-    public Item GetItemByName(string itemName)
+    public Item TryFindItem(string itemName)
     {
         return Items.FirstOrDefault(item => item.Name.ToLower() == itemName.ToLower());
     }
 
-    public bool TryRemoveItem(Item item)
+    public void Sell(Item item)
     {
-        if (Items.Contains(item))
-        {
-            Items.Remove(item);
-            return true;
-        }
-        else
-        {
-            Console.WriteLine(Messages.SellerDoesNotHaveItem + item.Name);
-            return false;
-        }
+        Items.Remove(item);
+        AddMoney(item.Price);
     }
 }
 
@@ -189,12 +177,12 @@ public class Shop
     {
         Console.Write(Messages.EnterItemName);
         string itemName = Console.ReadLine();
-        Item itemToBuy = _seller.GetItemByName(itemName);
+        Item itemToBuy = _seller.TryFindItem(itemName);
 
-        if (itemToBuy != null && _player.TryRemoveMoney(itemToBuy.Price) && _seller.TryRemoveItem(itemToBuy))
+        if (itemToBuy != null && _player.CanBuy(itemToBuy))
         {
-            _player.AddItem(itemToBuy);
-            _seller.TryAddMoney(itemToBuy.Price);
+            _seller.Sell(itemToBuy);
+            _player.Buy(itemToBuy);
             Console.WriteLine(Messages.ItemSold + itemToBuy.Name);
         }
         else
