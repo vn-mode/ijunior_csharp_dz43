@@ -13,6 +13,7 @@ public class Program
     {
         Player player = new Player(1000);
         Seller seller = new Seller(500);
+        Shop shop = new Shop(seller, player);
 
         Item item1 = new Item("Книга", 150);
         Item item2 = new Item("Мяч", 50);
@@ -20,9 +21,9 @@ public class Program
         seller.AddItem(item1);
         seller.AddItem(item2);
 
-        bool continueRunning = true;
+        bool isRunning = true;
 
-        while (continueRunning)
+        while (isRunning)
         {
             Console.Write(Messages.Choices);
 
@@ -39,11 +40,11 @@ public class Program
                     break;
 
                 case CommandBuyItem:
-                    PurchaseItem(player, seller);
+                    shop.PurchaseItem();
                     break;
 
                 case CommandExit:
-                    continueRunning = false;
+                    isRunning = false;
                     break;
 
                 default:
@@ -53,22 +54,6 @@ public class Program
 
             Console.WriteLine($"У продавца на балансе: {seller.MoneyAmount}");
             Console.WriteLine($"У вас на балансе: {player.MoneyAmount}");
-        }
-    }
-
-    private static void PurchaseItem(Player player, Seller seller)
-    {
-        Console.Write(Messages.EnterItemName);
-        string itemName = Console.ReadLine();
-        Item itemToBuy = seller.GetItemByName(itemName);
-
-        if (itemToBuy != null)
-        {
-            player.BuyItem(seller, itemToBuy);
-        }
-        else
-        {
-            Console.WriteLine(string.Format(Messages.SellerDoesNotHaveItemInput, itemName));
         }
     }
 }
@@ -91,15 +76,15 @@ public class Messages
 public abstract class Trader
 {
     protected List<Item> Items;
-    protected decimal Money;
+    private decimal _money;
 
     public Trader(decimal money)
     {
         Items = new List<Item>();
-        Money = money;
+        _money = money;
     }
 
-    public decimal MoneyAmount => Money;
+    public decimal MoneyAmount => _money;
 
     public void ShowItems()
     {
@@ -123,39 +108,47 @@ public abstract class Trader
         Items.Add(item);
         Console.WriteLine(Messages.ItemAdded + item.Name);
     }
+
+    public bool TryAddMoney(decimal amount)
+    {
+        _money += amount;
+        return true;
+    }
+
+    public bool TryRemoveMoney(decimal amount)
+    {
+        if (_money < amount)
+        {
+            Console.WriteLine(Messages.InsufficientMoney);
+            return false;
+        }
+        else
+        {
+            _money -= amount;
+            return true;
+        }
+    }
 }
 
 public class Player : Trader
 {
     public Player(decimal money) : base(money) { }
-
-    public void BuyItem(Seller seller, Item item)
-    {
-        if (Money < item.Price)
-        {
-            Console.WriteLine(Messages.InsufficientMoney);
-            return;
-        }
-
-        if (seller.SellItem(this, item))
-        {
-            Money -= item.Price;
-        }
-    }
 }
 
 public class Seller : Trader
 {
     public Seller(decimal money) : base(money) { }
 
-    public bool SellItem(Player player, Item item)
+    public Item GetItemByName(string itemName)
+    {
+        return Items.FirstOrDefault(item => item.Name.ToLower() == itemName.ToLower());
+    }
+
+    public bool TryRemoveItem(Item item)
     {
         if (Items.Contains(item))
         {
             Items.Remove(item);
-            player.AddItem(item);
-            Console.WriteLine(Messages.ItemSold + item.Name);
-            Money += item.Price;
             return true;
         }
         else
@@ -164,21 +157,49 @@ public class Seller : Trader
             return false;
         }
     }
-
-    public Item GetItemByName(string itemName)
-    {
-        return Items.FirstOrDefault(item => item.Name.ToLower() == itemName.ToLower());
-    }
 }
 
 public class Item
 {
-    public string Name { get; set; }
-    public decimal Price { get; set; }
+    private string _name;
+    private decimal _price;
+
+    public string Name => _name;
+    public decimal Price => _price;
 
     public Item(string name, decimal price)
     {
-        Name = name;
-        Price = price;
+        _name = name;
+        _price = price;
+    }
+}
+
+public class Shop
+{
+    private Seller _seller;
+    private Player _player;
+
+    public Shop(Seller seller, Player player)
+    {
+        _seller = seller;
+        _player = player;
+    }
+
+    public void PurchaseItem()
+    {
+        Console.Write(Messages.EnterItemName);
+        string itemName = Console.ReadLine();
+        Item itemToBuy = _seller.GetItemByName(itemName);
+
+        if (itemToBuy != null && _player.TryRemoveMoney(itemToBuy.Price) && _seller.TryRemoveItem(itemToBuy))
+        {
+            _player.AddItem(itemToBuy);
+            _seller.TryAddMoney(itemToBuy.Price);
+            Console.WriteLine(Messages.ItemSold + itemToBuy.Name);
+        }
+        else
+        {
+            Console.WriteLine(string.Format(Messages.SellerDoesNotHaveItemInput, itemName));
+        }
     }
 }
