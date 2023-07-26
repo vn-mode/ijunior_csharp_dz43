@@ -78,13 +78,35 @@ public abstract class Trader
     protected List<Item> Items;
     private decimal _money;
 
+    public decimal MoneyAmount => _money;
+
     public Trader(decimal money)
     {
         Items = new List<Item>();
         _money = money;
     }
 
-    public decimal MoneyAmount => _money;
+    public void AddItem(Item item)
+    {
+        Items.Add(item);
+        Console.WriteLine(Messages.ItemAdded + item.Name);
+    }
+
+    public bool CanBuy(Item item)
+    {
+        return _money >= item.Price;
+    }
+
+    public void Buy(Item item)
+    {
+        _money -= item.Price;
+        AddItem(item);
+    }
+
+    public void AddMoney(decimal amount)
+    {
+        _money += amount;
+    }
 
     public void ShowItems()
     {
@@ -102,28 +124,6 @@ public abstract class Trader
             }
         }
     }
-
-    public void AddItem(Item item)
-    {
-        Items.Add(item);
-        Console.WriteLine(Messages.ItemAdded + item.Name);
-    }
-
-    public void AddMoney(decimal amount)
-    {
-        _money += amount;
-    }
-
-    public bool CanBuy(Item item)
-    {
-        return _money >= item.Price;
-    }
-
-    public void Buy(Item item)
-    {
-        _money -= item.Price;
-        AddItem(item);
-    }
 }
 
 public class Player : Trader
@@ -135,9 +135,10 @@ public class Seller : Trader
 {
     public Seller(decimal money) : base(money) { }
 
-    public Item TryFindItem(string itemName)
+    public bool TryFindItem(string itemName, out Item foundItem)
     {
-        return Items.FirstOrDefault(item => item.Name.ToLower() == itemName.ToLower());
+        foundItem = Items.FirstOrDefault(item => item.Name.ToLower() == itemName.ToLower());
+        return foundItem != null;
     }
 
     public void Sell(Item item)
@@ -152,14 +153,14 @@ public class Item
     private string _name;
     private decimal _price;
 
-    public string Name => _name;
-    public decimal Price => _price;
-
     public Item(string name, decimal price)
     {
         _name = name;
         _price = price;
     }
+
+    public string Name => _name;
+    public decimal Price => _price;
 }
 
 public class Shop
@@ -177,9 +178,8 @@ public class Shop
     {
         Console.Write(Messages.EnterItemName);
         string itemName = Console.ReadLine();
-        Item itemToBuy = _seller.TryFindItem(itemName);
 
-        if (itemToBuy != null && _player.CanBuy(itemToBuy))
+        if (_seller.TryFindItem(itemName, out Item itemToBuy) && _player.CanBuy(itemToBuy))
         {
             _seller.Sell(itemToBuy);
             _player.Buy(itemToBuy);
